@@ -33,7 +33,7 @@ jobs:
           - os: windows
             arch: x86
             runner: windows-latest
-            lib_ext: _x86.dll
+            lib_ext: .dll
 
     steps:
       - uses: actions/checkout@v4
@@ -63,12 +63,20 @@ jobs:
           CGO_ENABLED: 1
 
       - name: Build native library (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && runner.arch == 'amd64'
         shell: bash
         run: |
           cd bindings/clib
           mkdir -p dist
           CGO_ENABLED=1 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-amd64.dll .
+          
+      - name: Build native library (Windows)
+        if: runner.os == 'Windows' && runner.arch == 'x86'
+        shell: bash
+        run: |
+          cd bindings/clib
+          mkdir -p dist
+          CGO_ENABLED=1 GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-x86.dll .
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
