@@ -26,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.19'
           goarch: '386'
 
       - name: Remove local replace directives and tidy for CI
@@ -45,7 +45,7 @@ jobs:
         run: |
           cd bindings/clib
           mkdir -p dist
-          CGO_ENABLED=1 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-x86.dll .
+          CGO_ENABLED=0 go build -buildmode=c-shared -ldflags="-s -w" -extldflags '-Wl,--major-subsystem-version=6,--minor-subsystem-version=1,--disable-aslr' -o dist/libhttpcloak-windows-x86.dll .
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
