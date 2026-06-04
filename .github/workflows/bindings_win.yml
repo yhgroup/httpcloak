@@ -38,7 +38,7 @@ jobs:
           GONOSUMCHECK='github.com/sardanioss/*' GONOSUMDB='github.com/sardanioss/*' GOFLAGS=-mod=mod go mod tidy
 
       - name: Build native library (Windows)
-        if: runner.os == 'Windows' && runner.arch == 'amd64'
+        if: runner.os == 'Windows'
         shell: bash
         run: |
           cd bindings/clib
