@@ -45,7 +45,7 @@ jobs:
         run: |
           cd bindings/clib
           mkdir -p dist
-          CGO_ENABLED=0 go build -buildmode=c-shared -ldflags="-s -w" -extldflags '-Wl,--major-subsystem-version=6,--minor-subsystem-version=1,--disable-aslr' -o dist/libhttpcloak-windows-x86.dll .
+          CGO_ENABLED=0 go build -buildmode=c-shared -ldflags="-s -w -extldflags '-Wl,--major-subsystem-version=6,--minor-subsystem-version=1,--disable-aslr'" -o dist/libhttpcloak-windows-x86.dll .
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
