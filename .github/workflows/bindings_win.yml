@@ -1,0 +1,52 @@
+name: Build and Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-native:
+    name: Build native library (${{ matrix.os }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows
+            arch: 386
+            runner: windows-latest
+            lib_ext: .dll
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Remove local replace directives and tidy for CI
+        shell: bash
+        run: |
+          cd bindings/clib
+          go mod edit -dropreplace=github.com/sardanioss/utls
+          go mod edit -dropreplace=github.com/sardanioss/net
+          go mod edit -dropreplace=github.com/sardanioss/quic-go
+          go mod edit -dropreplace=github.com/sardanioss/udpbara
+          GONOSUMCHECK='github.com/sardanioss/*' GONOSUMDB='github.com/sardanioss/*' GOFLAGS=-mod=mod go mod tidy
+
+      - name: Build native library (Windows)
+        if: runner.os == 'Windows' && runner.arch == '386'
+        shell: bash
+        run: |
+          cd bindings/clib
+          mkdir -p dist
+          CGO_ENABLED=1 GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-386.dll .
+
+      - name: Upload native library
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-${{ matrix.os }}-${{ matrix.arch }}
+          path: bindings/clib/dist/libhttpcloak-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.lib_ext }}
