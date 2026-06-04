@@ -15,7 +15,7 @@ jobs:
       matrix:
         include:
           - os: windows
-            arch: 386
+            arch: amd64
             runner: windows-latest
             lib_ext: .dll
 
@@ -38,12 +38,12 @@ jobs:
           GONOSUMCHECK='github.com/sardanioss/*' GONOSUMDB='github.com/sardanioss/*' GOFLAGS=-mod=mod go mod tidy
 
       - name: Build native library (Windows)
-        if: runner.os == 'Windows' && runner.arch == '386'
+        if: runner.os == 'Windows' && runner.arch == 'amd64'
         shell: bash
         run: |
           cd bindings/clib
           mkdir -p dist
-          CGO_ENABLED=1 GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-386.dll .
+          CGO_ENABLED=1 GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-amd64.dll .
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
