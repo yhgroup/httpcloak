@@ -15,23 +15,19 @@ jobs:
       matrix:
         include:
           - os: windows
-            arch: amd64
+            arch: x86
             runner: windows-latest
             lib_ext: .dll
 
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup MinGW-w64
-        uses: egor-tensin/setup-mingw@v2.2.0
-        with:
-          platform: x86
-          version: 12.2.0
-          
+         
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+          goarch: '386'
 
       - name: Remove local replace directives and tidy for CI
         shell: bash
@@ -49,7 +45,7 @@ jobs:
         run: |
           cd bindings/clib
           mkdir -p dist
-          CGO_ENABLED=1 CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-amd64.dll .
+          CGO_ENABLED=1 CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-x86.dll .
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
