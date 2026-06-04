@@ -43,7 +43,7 @@ jobs:
         run: |
           cd bindings/clib
           mkdir -p dist
-          CGO_ENABLED=1 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-amd64.dll .
+          CGO_ENABLED=1 CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-amd64.dll .
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
