@@ -31,7 +31,7 @@ jobs:
             runner: windows-latest
             lib_ext: .dll
           - os: windows
-            arch: x86
+            arch: 386
             runner: windows-latest
             lib_ext: .dll
 
@@ -71,12 +71,12 @@ jobs:
           CGO_ENABLED=1 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-amd64.dll .
           
       - name: Build native library (Windows)
-        if: runner.os == 'Windows' && runner.arch == 'x86'
+        if: runner.os == 'Windows' && runner.arch == '386'
         shell: bash
         run: |
           cd bindings/clib
           mkdir -p dist
-          CGO_ENABLED=1 GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-x86.dll .
+          CGO_ENABLED=1 GOARCH=386 go build -buildmode=c-shared -ldflags="-s -w" -o dist/libhttpcloak-windows-386.dll .
 
       - name: Upload native library
         uses: actions/upload-artifact@v4
