@@ -1,6 +1,6 @@
 module httpcloak-clib
 
-go 1.26.0
+go 1.19.0
 
 require github.com/sardanioss/httpcloak v1.0.4
 
