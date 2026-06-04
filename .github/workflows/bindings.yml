@@ -30,6 +30,10 @@ jobs:
             arch: amd64
             runner: windows-latest
             lib_ext: .dll
+          - os: windows
+            arch: x86
+            runner: windows-latest
+            lib_ext: _x86.dll
 
     steps:
       - uses: actions/checkout@v4
