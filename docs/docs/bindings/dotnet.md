@@ -61,6 +61,9 @@ public Session(
     bool enableSpeculativeTls = false,
     string? switchProtocol = null,
     bool withoutCookieJar = false,
+    bool withoutConditionalCache = false,
+    bool disableEch = false,
+    bool disableHttp3 = false,
     string? ja3 = null,
     string? akamai = null,
     Dictionary<string, object>? extraFp = null,
@@ -100,6 +103,23 @@ Common kwargs across all of them: `headers`, `parameters`, `cookies`, `auth`, `t
 ```csharp
 var r = await s.PostJsonAsync("https://httpbin.org/post", new { hello = "world" });
 ```
+
+Binary and Stream body overloads (use these for file uploads, multipart, or any non-string payload):
+
+```csharp
+Task<Response> PostAsync(string url, byte[] body, ...);
+Task<Response> PostAsync(string url, Stream bodyStream, ...);
+Task<Response> PutAsync(string url, byte[] body, ...);
+Task<Response> PutAsync(string url, Stream bodyStream, ...);
+Task<Response> PatchAsync(string url, byte[] body, ...);
+Task<Response> PatchAsync(string url, Stream bodyStream, ...);
+Task<Response> RequestBinaryAsync(string method, string url, byte[] body, ...);
+Task<Response> RequestStreamAsync(string method, string url, Stream bodyStream, ...);
+Task<Response> PostMultipartAsync(string url, Dictionary<string,string>? fields = null, Dictionary<string, MultipartFile>? files = null, ...);
+Task WarmupAsync(string url, long timeoutMs = 0, ...);
+```
+
+`PostAsync(byte[])` and the binary overload family route through the base64-encoded body path so NUL bytes and non-UTF-8 sequences survive the cgo boundary intact. The Stream overloads read the entire stream into memory before sending; for very large uploads (>50 MB) prefer the chunked upload API `UploadStream(string method, string url, IEnumerable<byte[]> chunks, ...)` (or the `PostUpload(string url, IEnumerable<byte[]> chunks, ...)` convenience wrapper), which streams each chunk straight across the cgo boundary instead of buffering the whole body.
 
 ### Sync variants
 
@@ -145,14 +165,16 @@ StreamResponse RequestStream(string method, string url, string? body = null, ...
 
 ```csharp
 FastResponse GetFast(string url, Dictionary<string, string>? headers = null);
-FastResponse PostFast(string url, byte[]? body = null, Dictionary<string, string>? headers = null, string? contentType = null);
-FastResponse RequestFast(string method, string url, byte[]? body = null, Dictionary<string, string>? headers = null, string? contentType = null, int? timeout = null);
-FastResponse PutFast(string url, byte[]? body = null, Dictionary<string, string>? headers = null, string? contentType = null, int? timeout = null);
+FastResponse PostFast(string url, byte[]? body = null, Dictionary<string, string>? headers = null);
+FastResponse RequestFast(string method, string url, byte[]? body = null, Dictionary<string, string>? headers = null, int? timeout = null);
+FastResponse PutFast(string url, byte[]? body = null, Dictionary<string, string>? headers = null, int? timeout = null);
 FastResponse DeleteFast(string url, Dictionary<string, string>? headers = null, int? timeout = null);
-FastResponse PatchFast(string url, byte[]? body = null, Dictionary<string, string>? headers = null, string? contentType = null, int? timeout = null);
+FastResponse PatchFast(string url, byte[]? body = null, Dictionary<string, string>? headers = null, int? timeout = null);
 ```
 
-`GetFast` and `PostFast` don't accept a `timeout` parameter; they use the session-level default. `RequestFast`, `PutFast`, `DeleteFast`, and `PatchFast` do take an optional per-call `timeout` (seconds).
+`GetFast` and `PostFast` don't accept a `timeout` parameter; they use the session-level default. `RequestFast`, `PutFast`, `DeleteFast`, and `PatchFast` do take an optional per-call `timeout` (seconds). All variants also accept the usual extras (`parameters`, `cookies`, `auth`, `fetchMode`); they're omitted from the signatures here for brevity and match the regular-method shape one-for-one.
+
+To set the request `Content-Type`, pass it via the `headers` dictionary (`new Dictionary<string, string> { ["Content-Type"] = "application/json" }`). There's no dedicated `contentType` parameter.
 
 `FastResponse` skips a few allocations and exposes `Content` as a `byte[]` that's already been copied out of the pooled native buffer at the C boundary. There's no `Release()` method and no `IDisposable` to pair with `using`; the `byte[]` is GC-managed like any other .NET array. The class is a value-shaped record you read and let the garbage collector recycle.
 
@@ -391,11 +413,11 @@ HttpCloak.CustomPresets     // Describe / LoadFromJson / LoadFromFile / Unregist
 HttpCloak.Presets           // PascalCase string constants (Presets.Chrome146, Presets.Firefox133, ...)
 ```
 
-The `Presets` static class lags the registry by a release or two; the constants currently top out at `Presets.Chrome146` and the family of older PascalCase names. Newer presets land as plain string literals first (`new Session(preset: "chrome-148-windows")`) and get a typed constant in a follow-up. `HttpCloakInfo.AvailablePresets()` returns a `Dictionary<string, PresetInfo>` keyed by the canonical preset name (use `.ContainsKey("chrome-148")` to probe).
+The `Presets` static class mirrors the runtime registry. `Presets.ChromeLatest` (and the platform variants `ChromeLatestWindows`, `ChromeLatestLinux`, etc.) auto-resolves to the newest shipped Chrome; pin to a specific major with `Presets.Chrome148Windows` if you need byte-for-byte reproducibility. Firefox, Safari and the mobile families are similarly enumerated. For the authoritative live list including any custom presets loaded at runtime, `HttpCloakInfo.AvailablePresets()` returns a `Dictionary<string, PresetInfo>` keyed by the canonical preset name.
 
-`SessionCacheBackend` is Python and Node only; the .NET binding doesn't ship a managed wrapper today. The C entry points exist in `libhttpcloak`, so a future binding update can fold it in. Until then, the in-memory per-session ticket cache works as expected and only the cross-process distributed-cache use case isn't reachable from .NET.
+`SessionCacheBackend` plugs a distributed TLS session cache (Redis, Memcached, your own store) into the binding via an `ISessionCache` interface. Construct it with your implementation and call `Register()`, or use the `HttpCloakCache.ConfigureSessionCache(impl)` shorthand. The wrapper pins the six callback delegates as instance fields, swallows user-side exceptions back to "not found" / non-zero, and frees its trailing string buffers on `Dispose`. Full design in [Session cache](/advanced-tls/session-cache).
 
-`LocalProxy` runs a local HTTP proxy server that applies the fingerprint to any HTTP client pointed at it. `PresetPool` and JSON loading are covered in [JSON preset builder](/fingerprinting/json-preset-builder). `SessionCacheBackend` plugs into [Session save and restore](/connection-lifecycle/session-save-restore).
+`LocalProxy` runs a local HTTP proxy server that applies the fingerprint to any HTTP client pointed at it. `PresetPool` and JSON loading are covered in [JSON preset builder](/fingerprinting/json-preset-builder).
 
 ## P/Invoke pitfalls
 

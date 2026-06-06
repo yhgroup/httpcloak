@@ -266,7 +266,8 @@ curl -x http://127.0.0.1:8080 \
 | `RegisterSession(id, *Session) error` | Adds a session under `id`. Errors if `id` is taken. Calls `SetSessionIdentifier(id)` on the session so distributed TLS caches stay isolated per persona. | `register_session` (Python), `registerSession` (Node), `RegisterSession` (.NET) |
 | `UnregisterSession(id) *Session` | Removes the session and returns it. Does NOT close it. That's your call, since you might reuse it. | `unregister_session` (Python), `unregisterSession` (Node), `UnregisterSession` (.NET) |
 | `GetSession(id) *Session` | Direct lookup. Returns `nil` if missing. | Go-only at this release |
-| `ListSessions() []string` | All registered IDs. Handy for `/health` endpoints. | Go-only at this release |
+| `ListSessions() []string` | All registered IDs. Handy for `/health` endpoints. | `list_sessions` (Python), `listSessions` (Node), `ListSessions` (.NET) |
+| `HasSession(id) bool` | Existence check for one ID. Cheaper than scanning `ListSessions()`. | `has_session` (Python), `hasSession` (Node), `HasSession` (.NET) |
 
 Unknown session IDs return a 400 from the proxy, so typos surface fast instead of silently falling back to the default session.
 
@@ -370,7 +371,7 @@ Wire `Stop()` into your shutdown handler, scrape `Stats()` into Prometheus on a 
 The binding Stats shapes differ from Go and from each other:
 
 - **.NET `GetStats()`** returns a `LocalProxyStats` class with `Running`, `Port`, `ActiveConnections`, `TotalRequests`, `Preset`, `MaxConnections`. The `registered_sessions` field is not deserialized into the typed object; if you need it from .NET, parse the underlying JSON yourself.
-- **Node `getStats()`** returns a `LocalProxyStats` interface with `totalRequests`, `activeConnections`, `failedRequests`, `bytesSent`, `bytesReceived`. Different field set entirely; the binding tracks request-level counters that the Go map doesn't expose at the same shape. Don't expect the Go keys above to round-trip.
+- **Node `getStats()`** returns the Go map JSON.parse'd as-is, with the snake_case keys: `running`, `port`, `active_conns`, `total_requests`, `preset`, `max_connections`, `registered_sessions`. The `LocalProxyStats` TS interface mirrors these field names exactly.
 - **Python `get_stats()`** returns a dict mirroring the Go map keys.
 
 ## Multi-proxy pattern
